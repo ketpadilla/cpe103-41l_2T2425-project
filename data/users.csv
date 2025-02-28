@@ -1,4 +1,4 @@
-﻿iaccount_id,name,balance,pin
+﻿account_id,name,balance,pin
 0123-4567-8901,Dina Bale,5000.00,1111
 2345-6789-0123,Mally Gaya,0,2222
 3456-7890-1234,Toto Lee,10000,3333
