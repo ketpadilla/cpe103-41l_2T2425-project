@@ -18,38 +18,46 @@ class User:
     TOTAL_WIDTH: Final[int] = (2 * PADDING) + max(STR_LEN, len(PROMPT_STR))
     print_header(PROMPT_STR, TOTAL_WIDTH)
 
-    attempts_id = attempts_pin = 3
+    attempts_id = 3
     while attempts_id > 0:
       account_id = input("Enter Account ID: ")
 
-      if not (self.is_valid_account_id_format(account_id)):
-        print("Invalid Account ID. Please try again")
-      
+      if not self.is_valid_account_id_format(account_id):
+          print("Invalid Account ID. Please try again.")
+
       else:
+        found = False
+
         with open(DB_PATH, mode='r') as file:
           reader = csv.DictReader(file)
+
           for row in reader:
             if row['account_id'] == account_id:
+              found = True
+              attempts_pin = 3
 
               while attempts_pin > 0:
                 if row['pin'] == self.get_pin():
                   self.account_id = row['account_id']
                   return
-                
-                print("Incorrect PIN. Please try again")
+
+                print("Incorrect PIN. Please try again.")
 
                 attempts_pin -= 1
                 print(f"\nAttempts Left: {attempts_pin}")
+
               print("\nToo many attempts.")
-      
+              return
+
+        if not found:
           print("Account ID not found. Please try again.")
-      
+
       attempts_id -= 1
       print(f"\nAttempts Left: {attempts_id}")
     print("\nToo many attempts.")
 
-  def is_valid_account_id_format(self, account_id: str) -> None:
-    return bool(account_id) and len(account_id) == 14 and all(part.isdigit() for part in account_id.split('-'))
+  def is_valid_account_id_format(self, account_id: str) -> bool:
+    return re.fullmatch(r"\d{4}-\d{4}-\d{4}", account_id) is not None
 
   def get_pin(self) -> str:
     pin = input("Enter PIN: ")
@@ -81,13 +89,19 @@ class User:
         while attempts_pin > 0:
           pin = self.get_pin()
           if pin is not None:
-            self.account_id = self.generate_unique_account_id()
-            self.name = name
-            self.balance = 0.00
+            entry_id: int = None
+            self.account_id: str = self.generate_unique_account_id()
+            self.name: str = name
+            self.balance: float = 0.00
 
-            with open(DB_PATH, mode='a', newline='') as file:
+            with open(DB_PATH, mode='r', newline='') as file:
+              reader = csv.reader(file)
+              rows = list(reader)
+              entry_id = len(rows)
+
+            with open(DB_PATH, mode='a') as file:
               writer = csv.writer(file)
-              writer.writerow([self.account_id, self.name, pin, self.balance])
+              writer.writerow([entry_id, self.account_id, self.name, self.balance, pin])
             
             print(f"\nAccount successfully created\n Your Account ID is {self.account_id}")
             
@@ -124,6 +138,8 @@ class User:
   def load_account_details(self) -> None:
     if self.account_id is None:
       print("Error: Account ID is not set.")
+      prompt_continue()
+      prompt_continue()
       return
     
     with open(DB_PATH, mode='r') as file:
@@ -137,6 +153,7 @@ class User:
   def check_balance(self) -> None:
     if self.account_id is None:
       print("Error: No account loaded.")
+      prompt_continue()
       return
     
     HEADER_STR: Final[str] = 'Check Balance'
@@ -150,23 +167,10 @@ class User:
     except FileNotFoundError:
       return 1001
 
-  def load_account_details(self) -> None:
-    if self.account_id is None:
-      print("Error: Account ID is not set.")
-      return
-    
-    with open(DB_PATH, mode='r') as file:
-      reader = csv.DictReader(file)
-
-      for row in reader:
-        if row['account_id'] == str(self.account_id):
-          self.name = row['name']
-          self.balance = float(row['balance'])
-          break
-
   def check_balance(self) -> None:
     if self.account_id is None:
       print("Error: No account loaded.")
+      prompt_continue()
       return
     
     HEADER_STR: Final[str] = 'Check Balance'
@@ -191,6 +195,12 @@ class User:
   def withdraw(self) -> None:
     if self.account_id is None:
       print("Error: No account loaded.")
+      prompt_continue()
+      return
+
+    if self.balance == 0:
+      print("Account is empty.")
+      prompt_continue()
       return
     
     HEADER_STR: str = 'Withdraw'
@@ -212,6 +222,7 @@ class User:
   def deposit(self) -> None:
     if self.account_id is None:
       print("Error: No account loaded.")
+      prompt_continue()
       return
     
     HEADER_STR: str = 'Deposit'
@@ -279,23 +290,23 @@ class User:
 
   def update_balance(self) -> None:
     if self.account_id is None:
-      print("Error: No account loaded.")
-      return
-    
-    accounts: List[Dict[str, str]] = []
-    with open(DB_PATH, mode='r') as file:
-      reader = csv.DictReader(file)
-      fieldnames = reader.fieldnames 
+        print("Error: No account loaded.")
+        return
 
-      for row in reader:
-        if row['account_id'] == str(self.account_id):  
-          row['balance'] = f"{self.balance:.2f}"  
-        accounts.append(row)
+    rows = []
+    with open(DB_PATH, mode='r') as file:
+        reader = csv.DictReader(file)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            if row['account_id'] == self.account_id:
+                row['balance'] = f"{self.balance:.2f}"
+            rows.append(row)
 
     with open(DB_PATH, mode='w', newline='') as file:
-      writer = csv.DictWriter(file, fieldnames=fieldnames)
-      writer.writeheader()
-      writer.writerows(accounts)
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 
   def get_account_id(self) -> str:
     return self.account_id
